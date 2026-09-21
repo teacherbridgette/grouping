@@ -4,6 +4,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AR Workshop Experience</title>
 
+    <!-- Stable A-Frame & MindAR CDNs -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
@@ -22,41 +23,69 @@
     </style>
 
     <script>
-      AFRAME.registerComponent('ar-video', {
+      AFRAME.registerComponent('ar-video-target', {
+        schema: {
+          src: {type: 'string'},
+          targetIndex: {type: 'int'}
+        },
         init: function () {
-          var target = this.el;
-          var videoSelector = target.getAttribute('data-video');
-          this.vid = document.querySelector(videoSelector);
+          var el = this.el;
+          var videoUrl = this.data.src;
 
-          target.addEventListener('targetFound', function () {
-            if (this.vid) {
-              this.vid.currentTime = 0;
-              this.vid.muted = false; // Enable audio once scanned
-              var playPromise = this.vid.play();
+          // Create video element directly in memory
+          this.videoEl = document.createElement('video');
+          this.videoEl.src = videoUrl;
+          this.videoEl.crossOrigin = 'anonymous';
+          this.videoEl.playsInline = true;
+          this.videoEl['webkit-playsinline'] = true;
+          this.videoEl.loop = true;
+          this.videoEl.preload = 'metadata';
+
+          // Create standard A-Frame video plane
+          var aVideo = document.createElement('a-video');
+          aVideo.setAttribute('width', '1');
+          aVideo.setAttribute('height', '0.5625');
+          aVideo.setAttribute('position', '0 0 0');
+          el.appendChild(aVideo);
+
+          // Connect video element texture on tracking event
+          el.addEventListener('targetFound', function () {
+            if (this.videoEl) {
+              aVideo.setAttribute('src', this.videoEl);
+              this.videoEl.currentTime = 0;
+              this.videoEl.muted = false;
+              
+              var playPromise = this.videoEl.play();
               if (playPromise !== undefined) {
-                playPromise.catch(function(e) { console.log("Play error:", e); });
+                playPromise.catch(function(e) {
+                  console.log("Playback error:", e);
+                });
               }
             }
           }.bind(this));
 
-          target.addEventListener('targetLost', function () {
-            if (this.vid) {
-              this.vid.pause();
+          el.addEventListener('targetLost', function () {
+            if (this.videoEl) {
+              this.videoEl.pause();
             }
           }.bind(this));
         }
       });
 
       function startAR() {
-        document.getElementById('overlay').style.display = 'none';
-
-        // Unlock mobile audio/video engine on initial click
-        var videos = document.querySelectorAll('video');
-        videos.forEach(function(vid) {
-          vid.play().then(function() {
-            vid.pause();
-          }).catch(function(e) { console.log("Unlock error:", e); });
+        // Unlock browser audio context on touch
+        var targets = document.querySelectorAll('[ar-video-target]');
+        targets.forEach(function(targetEl) {
+          var comp = targetEl.components['ar-video-target'];
+          if (comp && comp.videoEl) {
+            comp.videoEl.play().then(function() {
+              comp.videoEl.pause();
+            }).catch(function(e){ console.log("Unlock info:", e); });
+          }
         });
+
+        // Hide overlay screen to show camera feed
+        document.getElementById('overlay').style.display = 'none';
       }
     </script>
   </head>
@@ -65,7 +94,7 @@
 
     <div id="overlay">
       <h2>Classroom AR Scanner</h2>
-      <p>Tap start to enable camera and audio</p>
+      <p>Tap start to enable camera and sound</p>
       <button onclick="startAR()">Start Camera</button>
     </div>
 
@@ -76,35 +105,19 @@
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false"
     >
-      <a-assets>
-        <!-- Videos preloaded muted so mobile security lets A-Frame build target planes -->
-        <video id="v1" src="video1.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
-        <video id="v2" src="video2.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
-        <video id="v3" src="video3.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
-        <video id="v4" src="video4.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
-      </a-assets>
-
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Target 0 -->
-      <a-entity mindar-image-target="targetIndex: 0" ar-video data-video="#v1">
-        <a-video src="#v1" width="1" height="0.5625" position="0 0 0"></a-video>
-      </a-entity>
+      <!-- Target 0 -> video1.mp4 -->
+      <a-entity mindar-image-target="targetIndex: 0" ar-video-target="src: video1.mp4; targetIndex: 0"></a-entity>
 
-      <!-- Target 1 -->
-      <a-entity mindar-image-target="targetIndex: 1" ar-video data-video="#v2">
-        <a-video src="#v2" width="1" height="0.5625" position="0 0 0"></a-video>
-      </a-entity>
+      <!-- Target 1 -> video2.mp4 -->
+      <a-entity mindar-image-target="targetIndex: 1" ar-video-target="src: video2.mp4; targetIndex: 1"></a-entity>
 
-      <!-- Target 2 -->
-      <a-entity mindar-image-target="targetIndex: 2" ar-video data-video="#v3">
-        <a-video src="#v3" width="1" height="0.5625" position="0 0 0"></a-video>
-      </a-entity>
+      <!-- Target 2 -> video3.mp4 -->
+      <a-entity mindar-image-target="targetIndex: 2" ar-video-target="src: video3.mp4; targetIndex: 2"></a-entity>
 
-      <!-- Target 3 -->
-      <a-entity mindar-image-target="targetIndex: 3" ar-video data-video="#v4">
-        <a-video src="#v4" width="1" height="0.5625" position="0 0 0"></a-video>
-      </a-entity>
+      <!-- Target 3 -> video4.mp4 -->
+      <a-entity mindar-image-target="targetIndex: 3" ar-video-target="src: video4.mp4; targetIndex: 3"></a-entity>
 
     </a-scene>
   </body>

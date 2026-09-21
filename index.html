@@ -22,7 +22,7 @@
     </style>
 
     <script>
-      // Smart handler: Loads video ONLY when scanned to prevent memory crashes
+      // Component to manage video state on target tracking
       AFRAME.registerComponent('smart-video', {
         schema: {
           src: {type: 'string'}
@@ -30,26 +30,29 @@
         init: function () {
           var el = this.el;
           var videoUrl = this.data.src;
-          this.videoEl = null;
+
+          // Pre-create the element to bind to A-Frame
+          this.videoEl = document.createElement('video');
+          this.videoEl.setAttribute('src', videoUrl);
+          this.videoEl.setAttribute('crossOrigin', 'anonymous');
+          this.videoEl.setAttribute('playsinline', '');
+          this.videoEl.setAttribute('webkit-playsinline', '');
+          this.videoEl.preload = 'auto';
+          this.videoEl.loop = true;
+
+          var aVideo = el.querySelector('a-video');
+          aVideo.setAttribute('src', this.videoEl);
 
           el.addEventListener('targetFound', function () {
-            if (!this.videoEl) {
-              // Dynamically create video element on demand
-              this.videoEl = document.createElement('video');
-              this.videoEl.setAttribute('src', videoUrl);
-              this.videoEl.setAttribute('crossOrigin', 'anonymous');
-              this.videoEl.setAttribute('playsinline', '');
-              this.videoEl.setAttribute('webkit-playsinline', '');
-              this.videoEl.loop = true;
-              
-              // Attach video element to a-video material
-              var aVideo = el.querySelector('a-video');
-              aVideo.setAttribute('src', this.videoEl);
+            if (this.videoEl) {
+              this.videoEl.currentTime = 0;
+              var promise = this.videoEl.play();
+              if (promise !== undefined) {
+                promise.catch(function(error) {
+                  console.log("Playback prevented: ", error);
+                });
+              }
             }
-
-            this.videoEl.play().catch(function(e) {
-              console.log("Playback error:", e);
-            });
           }.bind(this));
 
           el.addEventListener('targetLost', function () {
@@ -61,6 +64,21 @@
       });
 
       function startAR() {
+        // Unlock video/audio playback engine on mobile browsers
+        var entities = document.querySelectorAll('[smart-video]');
+        entities.forEach(function(entity) {
+          var component = entity.components['smart-video'];
+          if (component && component.videoEl) {
+            // Momentarily play and pause to grant browser media permission
+            component.videoEl.play().then(function() {
+              component.videoEl.pause();
+            }).catch(function(e) {
+              console.log("Unlock notice:", e);
+            });
+          }
+        });
+
+        // Hide overlay screen
         document.getElementById('overlay').style.display = 'none';
       }
     </script>
@@ -70,6 +88,7 @@
 
     <div id="overlay">
       <h2>AR Classroom Scanner</h2>
+      <p>Tap start to enable camera and audio</p>
       <button onclick="startAR()">Start Camera</button>
     </div>
 

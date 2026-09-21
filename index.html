@@ -22,64 +22,41 @@
     </style>
 
     <script>
-      // Component to manage video state on target tracking
-      AFRAME.registerComponent('smart-video', {
-        schema: {
-          src: {type: 'string'}
-        },
+      AFRAME.registerComponent('ar-video', {
         init: function () {
-          var el = this.el;
-          var videoUrl = this.data.src;
+          var target = this.el;
+          var videoSelector = target.getAttribute('data-video');
+          this.vid = document.querySelector(videoSelector);
 
-          // Pre-create the element to bind to A-Frame
-          this.videoEl = document.createElement('video');
-          this.videoEl.setAttribute('src', videoUrl);
-          this.videoEl.setAttribute('crossOrigin', 'anonymous');
-          this.videoEl.setAttribute('playsinline', '');
-          this.videoEl.setAttribute('webkit-playsinline', '');
-          this.videoEl.preload = 'auto';
-          this.videoEl.loop = true;
-
-          var aVideo = el.querySelector('a-video');
-          aVideo.setAttribute('src', this.videoEl);
-
-          el.addEventListener('targetFound', function () {
-            if (this.videoEl) {
-              this.videoEl.currentTime = 0;
-              var promise = this.videoEl.play();
-              if (promise !== undefined) {
-                promise.catch(function(error) {
-                  console.log("Playback prevented: ", error);
-                });
+          target.addEventListener('targetFound', function () {
+            if (this.vid) {
+              this.vid.currentTime = 0;
+              this.vid.muted = false; // Enable audio once scanned
+              var playPromise = this.vid.play();
+              if (playPromise !== undefined) {
+                playPromise.catch(function(e) { console.log("Play error:", e); });
               }
             }
           }.bind(this));
 
-          el.addEventListener('targetLost', function () {
-            if (this.videoEl) {
-              this.videoEl.pause();
+          target.addEventListener('targetLost', function () {
+            if (this.vid) {
+              this.vid.pause();
             }
           }.bind(this));
         }
       });
 
       function startAR() {
-        // Unlock video/audio playback engine on mobile browsers
-        var entities = document.querySelectorAll('[smart-video]');
-        entities.forEach(function(entity) {
-          var component = entity.components['smart-video'];
-          if (component && component.videoEl) {
-            // Momentarily play and pause to grant browser media permission
-            component.videoEl.play().then(function() {
-              component.videoEl.pause();
-            }).catch(function(e) {
-              console.log("Unlock notice:", e);
-            });
-          }
-        });
-
-        // Hide overlay screen
         document.getElementById('overlay').style.display = 'none';
+
+        // Unlock mobile audio/video engine on initial click
+        var videos = document.querySelectorAll('video');
+        videos.forEach(function(vid) {
+          vid.play().then(function() {
+            vid.pause();
+          }).catch(function(e) { console.log("Unlock error:", e); });
+        });
       }
     </script>
   </head>
@@ -87,7 +64,7 @@
   <body style="margin: 0px; overflow: hidden;">
 
     <div id="overlay">
-      <h2>AR Classroom Scanner</h2>
+      <h2>Classroom AR Scanner</h2>
       <p>Tap start to enable camera and audio</p>
       <button onclick="startAR()">Start Camera</button>
     </div>
@@ -99,26 +76,34 @@
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false"
     >
+      <a-assets>
+        <!-- Videos preloaded muted so mobile security lets A-Frame build target planes -->
+        <video id="v1" src="video1.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
+        <video id="v2" src="video2.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
+        <video id="v3" src="video3.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
+        <video id="v4" src="video4.mp4" preload="auto" loop crossorigin="anonymous" playsinline webkit-playsinline muted></video>
+      </a-assets>
+
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-      <!-- Target 0 -> Load video1.mp4 -->
-      <a-entity mindar-image-target="targetIndex: 0" smart-video="src: video1.mp4">
-        <a-video width="1" height="0.5625" position="0 0 0"></a-video>
+      <!-- Target 0 -->
+      <a-entity mindar-image-target="targetIndex: 0" ar-video data-video="#v1">
+        <a-video src="#v1" width="1" height="0.5625" position="0 0 0"></a-video>
       </a-entity>
 
-      <!-- Target 1 -> Load video2.mp4 -->
-      <a-entity mindar-image-target="targetIndex: 1" smart-video="src: video2.mp4">
-        <a-video width="1" height="0.5625" position="0 0 0"></a-video>
+      <!-- Target 1 -->
+      <a-entity mindar-image-target="targetIndex: 1" ar-video data-video="#v2">
+        <a-video src="#v2" width="1" height="0.5625" position="0 0 0"></a-video>
       </a-entity>
 
-      <!-- Target 2 -> Load video3.mp4 -->
-      <a-entity mindar-image-target="targetIndex: 2" smart-video="src: video3.mp4">
-        <a-video width="1" height="0.5625" position="0 0 0"></a-video>
+      <!-- Target 2 -->
+      <a-entity mindar-image-target="targetIndex: 2" ar-video data-video="#v3">
+        <a-video src="#v3" width="1" height="0.5625" position="0 0 0"></a-video>
       </a-entity>
 
-      <!-- Target 3 -> Load video4.mp4 -->
-      <a-entity mindar-image-target="targetIndex: 3" smart-video="src: video4.mp4">
-        <a-video width="1" height="0.5625" position="0 0 0"></a-video>
+      <!-- Target 3 -->
+      <a-entity mindar-image-target="targetIndex: 3" ar-video data-video="#v4">
+        <a-video src="#v4" width="1" height="0.5625" position="0 0 0"></a-video>
       </a-entity>
 
     </a-scene>
